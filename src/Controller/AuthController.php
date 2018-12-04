@@ -5,9 +5,9 @@ namespace AuthService\Controller;
 
 use AuthService\AmoClient;
 use AuthService\Config;
+use AuthService\RedisFactory;
 use AuthService\Controller\Error\BadRequest;
 use Exception;
-use Redis;
 
 /**
  * Сервис авторизации пользователей amoCRM по одноразовому токену (реализация тестового задания)
@@ -18,9 +18,9 @@ use Redis;
 class AuthController extends AbstractController
 {
     /**
-     * @var Redis
+     * @var RedisFactory
      */
-    private $redis;
+    private $redisFactory;
 
     /**
      * @var Config
@@ -28,13 +28,20 @@ class AuthController extends AbstractController
     private $config;
 
     /**
+     * @var AmoClient 
+     */
+    private $amoClient;
+    
+    
+    /**
      * @param Redis  $redis
      * @param Config $config
      */
-    public function __construct(Redis $redis, Config $config)
+    public function __construct(RedisFactory $redisFactory, Config $config, AmoClient $amoClient)
     {
-        $this->redis = $redis;
+        $this->redisFactory = $redisFactory;
         $this->config = $config;
+        $this->amoClient = $amoClient;
     }
 
     /**
@@ -48,11 +55,12 @@ class AuthController extends AbstractController
      */
     protected function getToken(string $login, string $apiKey): array
     {
-        $amoClient = new AmoClient(Config::get('amocrm.domain'), $login, $apiKey);
-        $user = $amoClient->getCurrentUser();
+        $this->amoClient->auth($this->config::get('amocrm.domain'), $login, $apiKey);
+        $user = $this->amoClient->getCurrentUser();
 
         $token = $this->generateToken();
-        $this->redis->set($token, json_encode($user), $this->config::get('service.tokenTTL'));
+        $redis = $this->redisFactory->create();
+        $redis->set($token, json_encode($user), $this->config::get('service.tokenTTL'));
 
         return ['token' => $token];
     }
@@ -67,15 +75,16 @@ class AuthController extends AbstractController
      */
     protected function tradeToken(string $token): array
     {
-        if (strlen($token) !== Config::get('service.tokenLength')) {
+        if (strlen($token) !== $this->config::get('service.tokenLength')) {
             throw new BadRequest('Invalid token length');
         }
 
-        $user = $this->redis->get($token);
+        $redis = $this->redisFactory->create();
+        $user = $redis->get($token);
         if ($user === false) {
             throw new BadRequest('Invalid or expired token');
         }
-        $this->redis->del($token);
+        $redis->del($token);
 
         return json_decode($user, true);
     }
@@ -88,6 +97,6 @@ class AuthController extends AbstractController
      */
     private function generateToken(): string
     {
-        return bin2hex(random_bytes(Config::get('service.tokenLength') / 2));
+        return bin2hex(random_bytes($this->config::get('service.tokenLength') / 2));
     }
 }

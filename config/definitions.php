@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use AuthService\Config;
+use AuthService\RedisFactory;
 use AuthService\Controller\AuthController;
 use AuthService\HandleErrors;
 use FastRoute\Dispatcher;
@@ -33,11 +34,5 @@ return [
     },
     RequestHandler::class => function (ContainerInterface $c) {
         return new RequestHandler($c);
-    },
-    Redis::class          => function (Config $config) {
-        $redis = new Redis();
-        $redis->connect($config::get('redis.host'), $config::get('redis.port'));
-
-        return $redis;
     },
 ];

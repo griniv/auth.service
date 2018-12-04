@@ -36,7 +36,7 @@ class AmoClient
      * @param string $login
      * @param string $hash
      */
-    public function __construct(string $domain, string $login, string $hash)
+    public function auth(string $domain, string $login, string $hash)
     {
         $this->login = $login;
 
