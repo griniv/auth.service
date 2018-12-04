@@ -17,7 +17,9 @@
         "middlewares/fast-route": "^1.2",
         "middlewares/request-handler": "^1.4",
         "zendframework/zend-httphandlerrunner": "^1.0",
-        "ddlzz/amocrm-api-client": "^0.3.3"
+        "ddlzz/amocrm-api-client": "^0.3.3",
+        "middlewares/payload": "^2.1",
+        "nabil1337/case-helper": "^0.1.0"
 	},
     "autoload": {
         "psr-4": {

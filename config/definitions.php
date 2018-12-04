@@ -1,26 +1,43 @@
 <?php
+declare(strict_types=1);
 
-declare(strict_types = 1);
-
+use AuthService\Config;
+use AuthService\Controller\AuthController;
+use AuthService\HandleErrors;
+use FastRoute\Dispatcher;
+use FastRoute\RouteCollector;
+use Middlewares\FastRoute;
+use Middlewares\JsonPayload;
+use Middlewares\RequestHandler;
 use Psr\Container\ContainerInterface;
-use Psr\Http\Message\ResponseInterface;
-use Zend\Diactoros\Response;
-
-use AuthService\AuthService;
-
-use function DI\create;
-use function DI\get;
+use Relay\Relay;
+use function FastRoute\simpleDispatcher;
 
 return [
-	ResponseInterface::class => create(Response::class),	
-	AuthService::class => create()->constructor(get(ResponseInterface::class)),	
-	'handleErrors' => function(ContainerInterface $c){		
-		return [$c->get(AuthService::class), 'handleErrors'];
-	},
-	'getToken' => function(ContainerInterface $c){		
-		return [$c->get(AuthService::class), 'getToken'];
-	},
-	'tradeToken' => function(ContainerInterface $c){		
-		return [$c->get(AuthService::class), 'tradeToken'];
-	}
+    FastRoute::class      => function (Dispatcher $dispatcher) {
+        return new FastRoute($dispatcher);
+    },
+    Dispatcher::class     => function () {
+        return simpleDispatcher(function (RouteCollector $r) {
+            $r->post('/token', [AuthController::class, 'getToken']);
+            $r->get('/token/{token:[a-f0-9]+}', [AuthController::class, 'tradeToken']);
+        });
+    },
+    Relay::class          => function (ContainerInterface $c) {
+        return new Relay([
+            $c->get(HandleErrors::class),
+            $c->get(FastRoute::class),
+            $c->get(JsonPayload::class),
+            $c->get(RequestHandler::class),
+        ]);
+    },
+    RequestHandler::class => function (ContainerInterface $c) {
+        return new RequestHandler($c);
+    },
+    Redis::class          => function (Config $config) {
+        $redis = new Redis();
+        $redis->connect($config::get('redis.host'), $config::get('redis.port'));
+
+        return $redis;
+    },
 ];
