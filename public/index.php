@@ -7,7 +7,6 @@ use Zend\Diactoros\ServerRequestFactory;
 use Zend\HttpHandlerRunner\Emitter\SapiEmitter;
 
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../config/settings.php';
 
 (function () {
     /** @noinspection PhpUnhandledExceptionInspection */

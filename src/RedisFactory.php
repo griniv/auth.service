@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace AuthService;
 
+use Noodlehaus\Config;
 use Redis;
 
 class RedisFactory {
@@ -25,7 +26,7 @@ class RedisFactory {
      */
     public function create(): Redis {
         $redis = new Redis();
-        $redis->connect($this->config::get('redis.host'), $this->config::get('redis.port'));
+        $redis->connect($this->config->get('redis.host'), $this->config->get('redis.port'));
         return $redis;
     }
 

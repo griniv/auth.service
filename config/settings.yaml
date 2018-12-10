@@ -1,0 +1,10 @@
+amocrm:
+    scheme: https
+    domain: example
+    base: amocrm.ru
+redis:
+    host: localhost
+    port: 6379
+service:
+    tokenLength: 64
+    tokenTTL: 15

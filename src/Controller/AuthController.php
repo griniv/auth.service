@@ -1,13 +1,15 @@
 <?php
-declare(strict_types=1);
+
+declare(strict_types = 1);
 
 namespace AuthService\Controller;
 
 use AuthService\AmoClient;
-use AuthService\Config;
 use AuthService\RedisFactory;
 use AuthService\Controller\Error\BadRequest;
-use Exception;
+use Noodlehaus\Config;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * Сервис авторизации пользователей amoCRM по одноразовому токену (реализация тестового задания)
@@ -15,8 +17,8 @@ use Exception;
  * @link   https://docs.google.com/document/d/1bjRlWxsvqLg77sSVxCa6xjU2W5VNJb46HJZIDVPHXJQ/edit
  * @author Anton Griniv <a.griniv@gmail.com>
  */
-class AuthController extends AbstractController
-{
+class AuthController extends AbstractController {
+
     /**
      * @var RedisFactory
      */
@@ -31,14 +33,13 @@ class AuthController extends AbstractController
      * @var AmoClient 
      */
     private $amoClient;
-    
-    
+
     /**
-     * @param Redis  $redis
+     * @param RedisFactory  $redisFactory
      * @param Config $config
+     * @param AmoClient $amoClient
      */
-    public function __construct(RedisFactory $redisFactory, Config $config, AmoClient $amoClient)
-    {
+    public function __construct(RedisFactory $redisFactory, Config $config, AmoClient $amoClient) {
         $this->redisFactory = $redisFactory;
         $this->config = $config;
         $this->amoClient = $amoClient;
@@ -47,37 +48,41 @@ class AuthController extends AbstractController
     /**
      * Обработка запроса на получение токена
      *
-     * @param string $login
-     * @param string $apiKey
-     *
-     * @return array
-     * @throws Exception
+     * @param ServerRequestInterface $request
+     * @return ResponseInterface
      */
-    protected function getToken(string $login, string $apiKey): array
-    {
-        $this->amoClient->auth($this->config::get('amocrm.domain'), $login, $apiKey);
+    public function getToken(ServerRequestInterface $request): ResponseInterface {
+        $config = $this->config;
+        $domain = $config->get('amocrm.domain');
+        $origin = $config->get('amocrm.scheme') . '://' . $domain . '.' . $config->get('amocrm.base');
+        $this->setHeader('Access-Control-Allow-Origin', $origin);
+        $this->setRules($request, [
+            'login' => ['ParsedBody', '/^[_a-z0-9-\.]+@[_a-z0-9-\.]+\.[a-z]{2,}$/i'],
+            'api_key' => ['ParsedBody', '/^[a-f0-9]{40}$/']
+        ]);
+
+        $this->amoClient->auth($domain, $this->getParam('login'), $this->getParam('api_key'));
         $user = $this->amoClient->getCurrentUser();
 
         $token = $this->generateToken();
         $redis = $this->redisFactory->create();
-        $redis->set($token, json_encode($user), $this->config::get('service.tokenTTL'));
+        $redis->set($token, json_encode($user), $config->get('service.tokenTTL'));
 
-        return ['token' => $token];
+        return $this->createResponse(['token' => $token]);
     }
 
     /**
      * Обработка запроса на обмен токена
      *
-     * @param string $token
-     *
-     * @return array
+     * @param ServerRequestInterface $request
+     * @return ResponseInterface
      * @throws BadRequest
      */
-    protected function tradeToken(string $token): array
-    {
-        if (strlen($token) !== $this->config::get('service.tokenLength')) {
-            throw new BadRequest('Invalid token length');
-        }
+    public function tradeToken(ServerRequestInterface $request): ResponseInterface {
+        $this->setRules($request, [
+            'token' => ['Attributes', '/^[a-f0-9]{' . $this->config->get('service.tokenLength') . '}$/']
+        ]);
+        $token = $this->getParam('token');
 
         $redis = $this->redisFactory->create();
         $user = $redis->get($token);
@@ -86,17 +91,16 @@ class AuthController extends AbstractController
         }
         $redis->del($token);
 
-        return json_decode($user, true);
+        return $this->createResponse(json_decode($user, true));
     }
 
     /**
      * Генерация токена
      *
      * @return string
-     * @throws Exception
      */
-    private function generateToken(): string
-    {
-        return bin2hex(random_bytes($this->config::get('service.tokenLength') / 2));
+    private function generateToken(): string {
+        return bin2hex(random_bytes($this->config->get('service.tokenLength') / 2));
     }
+
 }
