@@ -2,7 +2,6 @@
 
 declare(strict_types = 1);
 
-use AuthService\RedisFactory;
 use AuthService\Controller\AuthController;
 use AuthService\HandleErrors;
 use FastRoute\Dispatcher;

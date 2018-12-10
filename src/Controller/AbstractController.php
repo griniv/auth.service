@@ -5,12 +5,8 @@ declare(strict_types = 1);
 namespace AuthService\Controller;
 
 use AuthService\Controller\Error\BadRequest;
-use AuthService\Controller\Error\ControllerError;
 use AuthService\ResponseFactory;
-use CaseHelper\CaseHelperFactory;
-use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use ReflectionMethod;
 
 abstract class AbstractController {
 
